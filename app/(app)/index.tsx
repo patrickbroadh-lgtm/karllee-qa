@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Pressable,
@@ -110,12 +111,15 @@ export default function DashboardScreen() {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Projects & plots</Text>
-        <Text style={styles.body}>The next release will add live developments, plots and inspection records. No sample projects are shown as real data.</Text>
+        <Text style={styles.body}>Browse live developments and their plots. The new database migration must be applied before records appear.</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/projects')} style={styles.projectsButton}>
+          <Text style={styles.projectsButtonText}>Open developments</Text>
+        </Pressable>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>12-stage QA inspections</Text>
-        <Text style={styles.body}>Inspection checklists, evidence photos and snagging will be connected after the projects database is ready.</Text>
+        <Text style={styles.body}>The database migration defines twelve numbered stages and inspection attempts. Detailed checklists, photos and snagging are still pending.</Text>
       </View>
     </ScrollView>
   );
@@ -136,4 +140,6 @@ const styles = StyleSheet.create({
   orgName: { fontSize: 16, fontWeight: '700', color: '#203A50' },
   role: { fontSize: 13, color: '#51708A', textTransform: 'capitalize', marginTop: 4 },
   error: { color: '#B42318', fontSize: 14, lineHeight: 20 },
+  projectsButton: { backgroundColor: '#163A5F', borderRadius: 9, paddingVertical: 13, paddingHorizontal: 16, alignSelf: 'flex-start', marginTop: 14 },
+  projectsButtonText: { color: '#FFFFFF', fontWeight: '700' },
 });
