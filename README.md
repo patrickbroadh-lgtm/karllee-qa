@@ -2,11 +2,13 @@
 
 Mobile quality assurance, inspection and snagging application for Karllee Construction (UK) Ltd.
 
-## Current status (16 October 2026)
+## Current status (17 October 2026)
 
 **Implemented in source:** Supabase authentication client with persisted sessions, email/password sign-in screen, Expo Router protected navigation, sign-out, and a dashboard that reads the signed-in user's **active organisation memberships** from Supabase. A missing membership is explicitly shown instead of implying access. No sample projects are presented as genuine site data.
 
-**Not yet verified on a device or against the live Supabase project.** The projects, plots, 12-stage inspections, evidence, snagging, subcontractor workflow, offline sync, reporting and deployment remain to be implemented.
+**New source increment:** Organisation-scoped projects, plots and numbered 12-stage inspection attempts are defined in the migration `supabase/migrations/202610170001_projects_plots_inspections.sql`. A read-only **Developments & plots** screen now queries real Supabase rows through RLS; no sample developments are presented as real records. See `docs/projects-plots-inspections.md` for deployment and security checks.
+
+**Not yet verified on a device or against the live Supabase project.** The new migration is **not applied to the live database**. Project/plot creation screens, detailed inspection checklists, evidence, snagging, subcontractor workflow, offline sync, reporting and deployment remain pending.
 
 ## Run locally
 
@@ -29,11 +31,13 @@ Mobile quality assurance, inspection and snagging application for Karllee Constr
 - A valid account without an active organisation membership sees the access message.
 - Unauthenticated users cannot navigate to the protected dashboard.
 - RLS rejects a request for another user's membership.
+- After applying the new migration, the Developments screen shows only projects and plots accessible to the signed-in organisation member.
+- The cross-organisation, inactive-user and role-permission tests in `docs/projects-plots-inspections.md` pass.
 
 ## MVP build order
 
 1. Authentication and Supabase integration — **source implementation complete; live smoke test pending**
-2. Persistent projects, plots and QA inspections with organisation-scoped RLS
+2. Persistent projects, plots and QA inspections with organisation-scoped RLS — **schema and read-only project/plot screen committed; migration and live tests pending**
 3. Photo/document evidence
 4. Automatic snag creation from failed QA checks
 5. Subcontractor completion workflow and email notifications
