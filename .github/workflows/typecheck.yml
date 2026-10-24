@@ -1,0 +1,19 @@
+name: TypeScript and unit tests
+on:
+  push:
+    branches: [main, feature/auth-dashboard-20261016]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: node --experimental-strip-types --test tests/*.test.mjs

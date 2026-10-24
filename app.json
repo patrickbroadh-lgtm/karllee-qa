@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Karllee QA",
+    "slug": "karllee-qa",
+    "scheme": "karlleeqa",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router"],
+    "ios": { "supportsTablet": true },
+    "android": { "package": "uk.co.karlleeconstruction.qa" }
+  }
+}
