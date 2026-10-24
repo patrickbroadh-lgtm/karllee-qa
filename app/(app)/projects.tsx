@@ -61,6 +61,9 @@ export default function ProjectsScreen() {
       </View>
       <Text style={styles.title}>Developments & plots</Text>
       <Text style={styles.description}>Live records, restricted to your organisation membership.</Text>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/new-project')}>
+        <Text style={styles.link}>+ Create development</Text>
+      </Pressable>
       {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
       {loading ? <ActivityIndicator color="#163A5F" /> : null}
       {!loading && projects.length === 0 && !error ? (
@@ -77,6 +80,10 @@ export default function ProjectsScreen() {
           </Pressable>
           {selectedId === project.id ? (
             <View style={styles.plots}>
+              <Pressable accessibilityRole="button"
+                onPress={() => router.push({ pathname: '/new-plot', params: { projectId: project.id } })}>
+                <Text style={styles.link}>+ Create plot</Text>
+              </Pressable>
               {plotsLoading ? <ActivityIndicator color="#163A5F" /> : null}
               {!plotsLoading && plots.length === 0 ? <Text style={styles.description}>No plots recorded.</Text> : null}
               {!plotsLoading && plots.map((plot) => (
