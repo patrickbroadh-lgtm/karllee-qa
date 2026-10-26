@@ -93,7 +93,7 @@ export default function InspectionsScreen() {
   function updateAnswer(number: number, change: Partial<DraftAnswer>) {
     setAnswers((previous) => ({
       ...previous,
-      [number]: { result: null, notes: '', ...previous[number], ...change },
+      [number]: { ...(previous[number] ?? { result: null, notes: '' }), ...change },
     }));
   }
 
