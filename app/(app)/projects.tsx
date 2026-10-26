@@ -91,6 +91,11 @@ export default function ProjectsScreen() {
                   <Text style={styles.plotName}>Plot {plot.plot_number}</Text>
                   <Text style={styles.description}>{plot.status.replace(/_/g, ' ')}</Text>
                   <Pressable accessibilityRole="button" onPress={() => router.push({
+                    pathname: '/inspections', params: { plotId: plot.id },
+                  })}>
+                    <Text style={styles.link}>12-stage QA →</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" onPress={() => router.push({
                     pathname: '/snags', params: { plotId: plot.id },
                   })}>
                     <Text style={styles.link}>View snags →</Text>
