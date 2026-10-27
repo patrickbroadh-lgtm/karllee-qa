@@ -120,7 +120,7 @@ END $$;
 -- Incomplete checklists must be rejected atomically, without creating
 -- an inspection, answers or a second snag.
 SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
-DO $
+DO $$
 DECLARE rejected boolean := false;
 BEGIN
   BEGIN
@@ -138,10 +138,10 @@ BEGIN
      OR (SELECT count(*) FROM public.qa_check_answers) <> 5
      OR (SELECT count(*) FROM public.qa_snags) <> 1
   THEN RAISE EXCEPTION 'FAIL: rejected checklist left partial writes'; END IF;
-END $;
+END $$;
 
 -- A complete checklist with a failed check lacking notes must also fail.
-DO $
+DO $$
 DECLARE rejected boolean := false;
 BEGIN
   BEGIN
@@ -160,10 +160,10 @@ BEGIN
     rejected := true;
   END;
   IF NOT rejected THEN RAISE EXCEPTION 'FAIL: failure without notes accepted'; END IF;
-END $;
+END $$;
 
 -- Direct inserts must not bypass the atomic checklist RPC.
-DO $
+DO $$
 DECLARE rejected boolean := false;
 BEGIN
   BEGIN
@@ -173,7 +173,7 @@ BEGIN
     rejected := true;
   END;
   IF NOT rejected THEN RAISE EXCEPTION 'FAIL: direct inspection insert allowed'; END IF;
-END $;
+END $$;
 
 -- A reinspection must append attempt 2 and preserve attempt 1 and its snag.
 SELECT public.qa_submit_stage_checklist(
@@ -182,16 +182,16 @@ SELECT public.qa_submit_stage_checklist(
  (SELECT jsonb_agg(jsonb_build_object('check_number', check_number, 'result', 'pass') ORDER BY check_number)
   FROM public.qa_checklist_templates WHERE stage_number = 1)
 );
-DO $ BEGIN
+DO $$ BEGIN
  IF (SELECT count(*) FROM public.qa_inspections WHERE stage_number = 1) <> 2
  OR (SELECT count(*) FROM public.qa_check_answers) <> 10
  OR (SELECT count(*) FROM public.qa_snags) <> 1
  THEN RAISE EXCEPTION 'FAIL: reinspection did not preserve history'; END IF;
-END $;
+END $$;
 
 -- Only a manager can resolve a snag; status changes must be audited.
 SELECT set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
-DO $
+DO $$
 DECLARE changed integer;
 BEGIN
  UPDATE public.qa_snags SET status = 'resolved' WHERE status = 'open';
@@ -201,14 +201,14 @@ BEGIN
      WHERE previous_status = 'open' AND new_status = 'resolved'
        AND changed_by = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') <> 1
  THEN RAISE EXCEPTION 'FAIL: snag status audit missing'; END IF;
-END $;
+END $$;
 SELECT set_config('request.jwt.claim.sub', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', true);
-DO $
+DO $$
 DECLARE changed integer;
 BEGIN
  UPDATE public.qa_snags SET status = 'open' WHERE status = 'resolved';
  GET DIAGNOSTICS changed = ROW_COUNT;
  IF changed <> 0 THEN RAISE EXCEPTION 'FAIL: viewer changed snag status'; END IF;
-END $;
+END $$;
 
 ROLLBACK;
