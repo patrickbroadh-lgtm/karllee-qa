@@ -116,4 +116,99 @@ DO $$ BEGIN
  OR EXISTS (SELECT 1 FROM public.qa_snags)
  THEN RAISE EXCEPTION 'FAIL: inactive member retains access'; END IF;
 END $$;
+
+-- Incomplete checklists must be rejected atomically, without creating
+-- an inspection, answers or a second snag.
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+DO $
+DECLARE rejected boolean := false;
+BEGIN
+  BEGIN
+    PERFORM public.qa_submit_stage_checklist(
+      '44444444-4444-4444-8444-444444444444'::uuid,
+      1::smallint,
+      '[{"check_number":1,"result":"pass"}]'::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE 'Exactly one answer%' THEN RAISE; END IF;
+    rejected := true;
+  END;
+  IF NOT rejected THEN RAISE EXCEPTION 'FAIL: incomplete checklist accepted'; END IF;
+  IF (SELECT count(*) FROM public.qa_inspections) <> 1
+     OR (SELECT count(*) FROM public.qa_check_answers) <> 5
+     OR (SELECT count(*) FROM public.qa_snags) <> 1
+  THEN RAISE EXCEPTION 'FAIL: rejected checklist left partial writes'; END IF;
+END $;
+
+-- A complete checklist with a failed check lacking notes must also fail.
+DO $
+DECLARE rejected boolean := false;
+BEGIN
+  BEGIN
+    PERFORM public.qa_submit_stage_checklist(
+      '44444444-4444-4444-8444-444444444444'::uuid,
+      1::smallint,
+      (SELECT jsonb_agg(jsonb_build_object(
+        'check_number', check_number,
+        'result', CASE WHEN check_number = 1 THEN 'fail' ELSE 'pass' END,
+        'notes', CASE WHEN check_number = 1 THEN '' ELSE NULL END
+      ) ORDER BY check_number)
+      FROM public.qa_checklist_templates WHERE stage_number = 1)
+    );
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE 'Checklist contains%' THEN RAISE; END IF;
+    rejected := true;
+  END;
+  IF NOT rejected THEN RAISE EXCEPTION 'FAIL: failure without notes accepted'; END IF;
+END $;
+
+-- Direct inserts must not bypass the atomic checklist RPC.
+DO $
+DECLARE rejected boolean := false;
+BEGIN
+  BEGIN
+    INSERT INTO public.qa_inspections (plot_id, stage_number, attempt, result)
+    VALUES ('44444444-4444-4444-8444-444444444444', 1, 2, 'pass');
+  EXCEPTION WHEN insufficient_privilege THEN
+    rejected := true;
+  END;
+  IF NOT rejected THEN RAISE EXCEPTION 'FAIL: direct inspection insert allowed'; END IF;
+END $;
+
+-- A reinspection must append attempt 2 and preserve attempt 1 and its snag.
+SELECT public.qa_submit_stage_checklist(
+ '44444444-4444-4444-8444-444444444444'::uuid,
+ 1::smallint,
+ (SELECT jsonb_agg(jsonb_build_object('check_number', check_number, 'result', 'pass') ORDER BY check_number)
+  FROM public.qa_checklist_templates WHERE stage_number = 1)
+);
+DO $ BEGIN
+ IF (SELECT count(*) FROM public.qa_inspections WHERE stage_number = 1) <> 2
+ OR (SELECT count(*) FROM public.qa_check_answers) <> 10
+ OR (SELECT count(*) FROM public.qa_snags) <> 1
+ THEN RAISE EXCEPTION 'FAIL: reinspection did not preserve history'; END IF;
+END $;
+
+-- Only a manager can resolve a snag; status changes must be audited.
+SELECT set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+DO $
+DECLARE changed integer;
+BEGIN
+ UPDATE public.qa_snags SET status = 'resolved' WHERE status = 'open';
+ GET DIAGNOSTICS changed = ROW_COUNT;
+ IF changed <> 1 THEN RAISE EXCEPTION 'FAIL: manager could not resolve snag'; END IF;
+ IF (SELECT count(*) FROM public.qa_snag_events
+     WHERE previous_status = 'open' AND new_status = 'resolved'
+       AND changed_by = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') <> 1
+ THEN RAISE EXCEPTION 'FAIL: snag status audit missing'; END IF;
+END $;
+SELECT set_config('request.jwt.claim.sub', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', true);
+DO $
+DECLARE changed integer;
+BEGIN
+ UPDATE public.qa_snags SET status = 'open' WHERE status = 'resolved';
+ GET DIAGNOSTICS changed = ROW_COUNT;
+ IF changed <> 0 THEN RAISE EXCEPTION 'FAIL: viewer changed snag status'; END IF;
+END $;
+
 ROLLBACK;
