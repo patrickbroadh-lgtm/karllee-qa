@@ -47,6 +47,8 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
       - name: Bootstrap disposable Supabase-compatible roles and auth schema
         run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres-auth-bootstrap.sql
+      - name: Bootstrap disposable Storage tables
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres-storage-bootstrap.sql
       - name: Apply all migrations in order (disposable database only)
         run: |
           set -euo pipefail
@@ -55,5 +57,8 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610170001_projects_plots_inspections.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610210001_qa_snags_and_audit.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610220001_checklist_answers.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610280001_qa_evidence_storage.sql
       - name: Exercise organisation isolation and authenticated checklist RPC
         run: psql -X -v ON_ERROR_STOP=1 -f tests/rls-cross-org.sql
+      - name: Exercise private evidence Storage metadata RLS
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/rls-evidence-storage.sql
