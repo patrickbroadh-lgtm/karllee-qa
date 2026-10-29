@@ -2,7 +2,7 @@ import {
   EVIDENCE_MIME_BY_EXTENSION,
   evidenceStoragePath,
   validateEvidenceFile,
-} from './evidence-path';
+} from './evidence-path.ts';
 
 /**
  * Metadata validation before any bytes are sent to private Storage.
