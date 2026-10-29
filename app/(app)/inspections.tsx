@@ -150,7 +150,7 @@ export default function InspectionsScreen() {
       <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.link}>← Developments & plots</Text></Pressable>
       <Text style={styles.title}>Karllee QA · 12 stages</Text>
       <Text style={styles.heading}>{heading}</Text>
-      <Text style={styles.hint}>Reference checks from QA Folder Rev A. Photographs, certificates and signatures are not yet captured. Older stage-only records do not prove individual checks passed.</Text>
+      <Text style={styles.hint}>Reference checks from QA Folder Rev A. Photographs can be attached to recorded inspection attempts; certificates and signatures are not yet captured. Older stage-only records do not prove individual checks passed.</Text>
       {plotId ? <Pressable accessibilityRole="button" onPress={() => router.push({
         pathname: '/snags', params: { plotId },
       })}><Text style={styles.link}>View snag register →</Text></Pressable> : null}
@@ -172,6 +172,11 @@ export default function InspectionsScreen() {
                   <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }}
                     onPress={() => setExpanded(open ? null : record.id)}>
                     <Text style={styles.link}>Attempt #{record.attempt} · {inspectionResultLabel(record.result)} · {record.inspected_at ? new Date(record.inspected_at).toLocaleDateString('en-GB') : 'Date unavailable'} {open ? '▲' : '▼'}</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" onPress={() => router.push({
+                    pathname: '/evidence', params: { inspectionId: record.id },
+                  })}>
+                    <Text style={styles.link}>View / add photo evidence →</Text>
                   </Pressable>
                   {open ? itemAnswers.length ? itemAnswers.map((answer) => (
                     <View key={answer.check_number} style={styles.check}>
