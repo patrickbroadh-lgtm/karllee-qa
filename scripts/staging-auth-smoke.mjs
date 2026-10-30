@@ -145,7 +145,15 @@ async function main() {
       { contentType: 'image/png', upsert: false }), 'B uploads A evidence');
     mustDeny(await a.storage.from('qa-evidence').upload(path, png,
       { contentType: 'image/png', upsert: true }), 'Overwrite evidence');
-    mustDeny(await a.storage.from('qa-evidence').remove([path]), 'Delete evidence');
+    const deletion = await a.storage.from('qa-evidence').remove([path]);
+    // Some Storage API versions return an empty success when RLS hides the
+    // target instead of reporting a permission error. Verify the object survives.
+    const afterDelete = mustSucceed(await viewer.storage.from('qa-evidence')
+      .list(prefix), 'Confirm evidence survives delete attempt');
+    assert.ok(afterDelete.some(x => path.endsWith('/' + x.name)),
+      'SECURITY FAILURE: evidence was deleted');
+    if (!deletion.error) assert.equal(deletion.data?.length ?? 0, 0,
+      'Delete API reported a removed object');
     log('real Storage rejects viewer/cross-org uploads, overwrite and delete');
 
     process.stdout.write(`STAGING SMOKE PASSED. Inspection: ${inspectionId}; evidence: ${path}\n`);
