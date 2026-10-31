@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { assertStagingTarget } from './staging-smoke-guards.mjs';
+import { assertStagingFixtureRoles } from './staging-fixture-guards.mjs';
 
 function required(name) {
   const value = process.env[name];
@@ -69,6 +70,25 @@ async function main() {
     const viewer = sessions.viewerA.supabase;
     const b = sessions.managerB.supabase;
 
+    // Fail closed on fixture identity/permissions BEFORE creating immutable records.
+    // Each test user must belong to exactly one of the two staging organisations.
+    const memberships = {};
+    for (const [role] of roles) {
+      const { supabase, userId } = sessions[role];
+      memberships[role] = mustSucceed(await supabase.from('organisation_members')
+        .select('organisation_id,role,active')
+        .eq('user_id', userId)
+        .in('organisation_id', [orgA, orgB]),
+      `Read staging membership for ${role}`);
+    }
+    assertStagingFixtureRoles({
+      orgA, orgB,
+      inspectorA: memberships.inspectorA,
+      viewerA: memberships.viewerA,
+      managerB: memberships.managerB,
+    });
+    log('dedicated staging roles and no cross-organisation fixture memberships');
+
     const plot = mustSucceed(await a.from('plots')
       .select('id,project_id').eq('id', plotA).single(), 'Read staging plot A');
     const project = mustSucceed(await a.from('projects')
@@ -96,6 +116,31 @@ async function main() {
     mustDeny(await viewer.rpc('qa_submit_stage_checklist', params), 'Viewer submits checklist');
     mustDeny(await b.rpc('qa_submit_stage_checklist', params), 'B submits A checklist');
     log('real JWT RPC denies viewer and cross-organisation caller');
+
+    // Verify invalid checklists fail atomically, without consuming an attempt.
+    const countAttempts = async () => {
+      const response = await a.from('qa_inspections')
+        .select('id', { count: 'exact', head: true })
+        .eq('plot_id', plotA).eq('stage_number', 1);
+      if (response.error) throw new Error(`Count staging inspections: ${response.error.message}`);
+      assert.equal(typeof response.count, 'number', 'Missing inspection count');
+      return response.count;
+    };
+    const attemptsBefore = await countAttempts();
+    mustDeny(await a.rpc('qa_submit_stage_checklist', {
+      ...params, p_answers: answers.slice(0, -1),
+    }), 'Incomplete checklist');
+    mustDeny(await a.rpc('qa_submit_stage_checklist', {
+      ...params, p_answers: answers.map((answer, index) => index === 0
+        ? { ...answer, result: 'fail', notes: '   ' } : answer),
+    }), 'Failure without description');
+    mustDeny(await a.rpc('qa_submit_stage_checklist', {
+      ...params, p_answers: answers.map((answer, index) => index === 0
+        ? { ...answer, check_number: 999 } : answer),
+    }), 'Unknown checklist item');
+    assert.equal(await countAttempts(), attemptsBefore,
+      'SECURITY FAILURE: invalid checklist created an inspection attempt');
+    log('real RPC rejects invalid checklists without partial inspection writes');
 
     // Creates ONE additional pass inspection attempt on a DEDICATED staging plot.
     const inspectionId = mustSucceed(await a.rpc('qa_submit_stage_checklist', params),
