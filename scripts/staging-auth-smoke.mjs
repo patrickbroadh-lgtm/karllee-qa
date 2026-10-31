@@ -180,8 +180,19 @@ async function main() {
       'CROSS-ORG LEAK: B can list A evidence');
     mustDeny(await b.storage.from('qa-evidence').createSignedUrl(path, 60),
       'B signs A evidence');
-    log('real Storage upload, member list/sign and cross-org isolation');
+    const anonymous = client(url, key);
+    mustDeny(await anonymous.storage.from('qa-evidence').createSignedUrl(path, 60),
+      'Anonymous caller signs private evidence');
+    mustDeny(await anonymous.storage.from('qa-evidence').download(path),
+      'Anonymous caller downloads private evidence');
+    log('real private Storage upload, member list/sign and anonymous/cross-org denial');
 
+    mustDeny(await a.storage.from('qa-evidence').upload(
+      `${orgB}/${inspectionId}/${randomUUID()}.png`, png,
+      { contentType: 'image/png', upsert: false }), 'Mismatched organisation evidence path');
+    mustDeny(await a.storage.from('qa-evidence').upload(
+      `${orgA}/${inspectionId}/${randomUUID()}.txt`, png,
+      { contentType: 'text/plain', upsert: false }), 'Disallowed evidence MIME');
     mustDeny(await viewer.storage.from('qa-evidence').upload(
       `${orgA}/${inspectionId}/${randomUUID()}.png`, png,
       { contentType: 'image/png', upsert: false }), 'Viewer uploads A evidence');
