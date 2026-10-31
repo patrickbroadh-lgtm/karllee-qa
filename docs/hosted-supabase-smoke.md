@@ -19,8 +19,11 @@ production credentials, a service-role key, or the production project URL.**
    an active inspector in organisation A, an active viewer in A, and an active
    manager in organisation B. Use the actual `organisation_members` roles.
 4. Seed one dedicated test plot in organisation A, and at least one project in
-   organisation B. Use test data only. The script verifies ownership and roles
-   before making the first inspection submission.
+   organisation B. Use test data only. Each test user must have exactly one
+   membership across organisations A and B: an active `inspector` in A, an
+   active `viewer` in A, or an active `site_manager`/`admin`/`director` in B.
+   The script verifies these memberships using each user's real JWT **before
+   writing**. It refuses cross-organisation memberships or incorrect roles.
 5. Export these variables **locally in a private terminal or secure environment**,
    never in GitHub commits or logs:
 
@@ -49,7 +52,10 @@ node scripts/staging-auth-smoke.mjs
 The script checks:
 
 - Real password sign-in and JWT-backed PostgREST visibility for A and B.
+- Dedicated user membership/role preflight before any immutable test writes.
 - Viewer and B-manager rejection of A's checklist RPC.
+- Incomplete, unknown-item and undescribed-failure checklist rejection,
+  including verification that failed RPCs did not create inspection attempts.
 - A inspector's complete stage-1 checklist RPC, saved answers, viewer read,
   and B cross-organisation isolation.
 - A inspector's real Storage API upload to the private bucket, A viewer
@@ -64,6 +70,9 @@ Storage upload failed). Re-running creates another attempt.
 ## Boundaries and release gate
 
 This is a **real hosted API integration smoke test only when actually executed**.
+The new fixture preflight checks only memberships in the two specified staging
+organisations; it is not an independent proof that the Supabase project is
+non-production. Confirm the project reference and staging identity manually.
 Committing it does not count as a passing hosted test. It does not replace
 physical iOS/Android testing, network interruption testing, expired-token
 checks, file content scanning, large-file rejection, signing/certificates,
