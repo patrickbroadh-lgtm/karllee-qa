@@ -59,7 +59,8 @@ The script checks:
 - A inspector's complete stage-1 checklist RPC, saved answers, viewer read,
   and B cross-organisation isolation.
 - A inspector's real Storage API upload to the private bucket, A viewer
-  listing/signed URL, B denial, viewer/B upload denial, overwrite denial,
+  listing/signed URL, anonymous and B denial, malformed organisation path
+  and disallowed MIME rejection, viewer/B upload denial, overwrite denial,
   and evidence survival after an attempted deletion.
 
 A successful run prints the test inspection UUID and object path. These
