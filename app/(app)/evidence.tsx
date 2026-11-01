@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { File } from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
+import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { useAuth } from '../../src/providers/AuthProvider';
 import { supabase } from '../../src/lib/supabase';
 import { canRecordInspection } from '../../src/lib/inspection-helpers';
 import { preparePhotoUpload } from '../../src/lib/evidence-upload';
+import { assertPdfHeader, prepareCertificateUpload } from '../../src/lib/certificate-upload';
 
 const BUCKET = 'qa-evidence';
 type EvidenceItem = { name: string; id: string | null; created_at: string | null };
@@ -130,6 +132,45 @@ export default function EvidenceScreen() {
     }
   }
 
+  async function pickCertificateAndUpload() {
+    if (!inspectionId || !organisationId || !canUpload || uploading) return;
+    setError('');
+    setNotice('');
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled || !result.assets.length) return;
+      const asset = result.assets[0];
+      const file = new File(asset.uri);
+      const prepared = prepareCertificateUpload({
+        asset, sizeBytes: file.size, organisationId, inspectionId,
+        fileId: Crypto.randomUUID(),
+      });
+      setUploading(true);
+      const bytes = await file.arrayBuffer();
+      if (bytes.byteLength !== prepared.sizeBytes) {
+        throw new Error('PDF changed while being read. Please select it again.');
+      }
+      assertPdfHeader(bytes);
+      const { error: uploadError } = await supabase.storage.from(BUCKET)
+        .upload(prepared.path, bytes, { contentType: prepared.contentType, upsert: false });
+      if (uploadError) throw uploadError;
+      setNotice('PDF evidence attached to this inspection attempt. The inspection record remains unchanged.');
+      try {
+        setItems(await listEvidence(organisationId, inspectionId));
+      } catch {
+        setNotice('PDF uploaded, but the evidence list could not refresh. Reopen to confirm.');
+      }
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'PDF attachment failed.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function openEvidence(name: string) {
     if (!organisationId || !inspectionId) return;
     setError('');
@@ -155,7 +196,7 @@ export default function EvidenceScreen() {
       </Pressable>
       <Text style={styles.title}>Inspection evidence</Text>
       <Text style={styles.heading}>{heading}</Text>
-      <Text style={styles.hint}>Photographs are stored privately against this specific inspection attempt. Evidence cannot be overwritten or deleted by app users. Do not photograph personal information unnecessarily.</Text>
+      <Text style={styles.hint}>Photographs and PDF documents are stored privately against this specific inspection attempt. Evidence cannot be overwritten or deleted by app users. Avoid unnecessary personal information.</Text>
       {loading ? <ActivityIndicator color="#163A5F" /> : null}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
@@ -171,6 +212,13 @@ export default function EvidenceScreen() {
           </Pressable>
         </View>
       ) : null}
+      {!loading && organisationId && canUpload ? (
+        <Pressable accessibilityRole="button" disabled={uploading}
+          style={[styles.button, { marginTop: 10 }]}
+          onPress={() => void pickCertificateAndUpload()}>
+          <Text style={styles.buttonText}>{uploading ? 'Uploading…' : 'Attach PDF certificate / document'}</Text>
+        </Pressable>
+      ) : null}
       {!loading && organisationId && !canUpload ? <Text style={styles.hint}>Read-only: your role cannot upload evidence.</Text> : null}
       {!loading && organisationId ? (
         <View style={styles.card}>
@@ -179,13 +227,13 @@ export default function EvidenceScreen() {
           {items.map((item) => (
             <Pressable key={item.id ?? item.name} accessibilityRole="button" style={styles.item}
               onPress={() => void openEvidence(item.name)}>
-              <Text style={styles.link}>{item.name}</Text>
+              <Text style={styles.link}>{item.name.endsWith('.pdf') ? 'PDF document · ' : 'Photo · '}{item.name}</Text>
               <Text style={styles.hint}>{item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : 'Date unavailable'} · View privately</Text>
             </Pressable>
           ))}
         </View>
       ) : null}
-      <Text style={styles.hint}>Maximum 20 MB per file. JPEG, PNG and HEIC photos only in this screen; PDF certificates will follow. Upload requires the staging-tested Storage policies before live use.</Text>
+      <Text style={styles.hint}>Maximum 20 MB per file. JPEG, PNG, HEIC photos and PDF documents only. PDF attachments are not automatically validated as statutory certificates. Upload requires the staging-tested Storage policies before live use.</Text>
     </ScrollView>
   );
 }
