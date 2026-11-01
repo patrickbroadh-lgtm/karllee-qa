@@ -8,15 +8,19 @@ Supabase project and do not merge PR #1 until these gates are complete.
 - The inspection history screen links to `/evidence?inspectionId=<uuid>`.
 - Authenticated members can list and view files on a specific immutable
   inspection attempt. Authorised inspectors can take/select one photo at a
-  time; uploads use Expo ImagePicker + Expo FileSystem `File.arrayBuffer()`.
+  time or attach a PDF document using Expo DocumentPicker; uploads use Expo
+  FileSystem `File.arrayBuffer()`.
 - Upload paths are `<organisation UUID>/<inspection UUID>/<new file UUID>.<ext>`.
   The client validates MIME/extension and 1–20 MiB; the private Storage
   bucket and RLS enforce organisation/inspection/role checks. No upserts,
   updates or deletes are exposed to app users.
-- JPEG, PNG and HEIC are supported. PDF certificates are intentionally not
-  yet selectable in the photo screen. Original image formats may be converted
-  by the device picker; reject MIME/extension mismatches rather than silently
-  relabel file bytes.
+- JPEG, PNG, HEIC and PDF are supported. The document picker copies PDFs into
+  local cache; the client checks filename, MIME, size and `%PDF-` header before
+  uploading. This does **not** validate PDF content, scan malware, establish
+  certificate authenticity or provide statutory sign-off. The private Storage
+  bucket also checks MIME and organisation RLS. Original image formats may be
+  converted by the device picker; reject MIME/extension mismatches rather than
+  silently relabel file bytes.
 - Evidence is opened with a 60-second signed URL. This is a bearer URL:
   treat it as sensitive and do not log or share it. The bucket is never public.
 - Current implementation loads the selected file into memory (ArrayBuffer).
@@ -44,6 +48,11 @@ Supabase project and do not merge PR #1 until these gates are complete.
 
 - [ ] Active A inspector can upload JPEG, PNG and HEIC (where supported),
       see the new item in the list and open it with a signed URL.
+- [ ] Active A inspector can select a genuine PDF from Files / iCloud / Android
+      document providers, attach it, list it and open its signed URL. Reject a
+      renamed non-PDF file, wrong MIME, empty file and >20 MiB PDF before upload.
+- [ ] PDF document picker cancellation, unavailable cloud files and lost
+      connectivity are recoverable; no successful-upload notice on failure.
 - [ ] A viewer can list/open A evidence but cannot upload; inactive A user
       and anonymous user cannot list, read, sign or upload.
 - [ ] A user cannot list/read/sign/upload evidence for organisation B,
@@ -71,9 +80,10 @@ Supabase project and do not merge PR #1 until these gates are complete.
 - No hosted Supabase staging tests or physical-device uploads have been run.
 - No evidence-specific relational audit/attachment table, captions or photo
   annotation yet; the object path ties evidence to an immutable inspection.
-- No PDF certificate picker, signatures, offline queue, upload progress or
-  resumable transfers. Storage list pagination is implemented, but needs a
-  high-volume staging test.
+- PDF attachments exist but have no certificate type, expiry, approval,
+  authenticity checks or statutory compliance sign-off. No signatures, offline
+  queue, upload progress or resumable transfers. Storage list pagination is
+  implemented, but needs a high-volume staging test.
 - The app has no production QA sign-off workflow yet. Do not use it to certify
   statutory compliance or replace signed site inspection records.
 
