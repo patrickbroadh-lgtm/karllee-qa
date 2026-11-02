@@ -11,6 +11,7 @@ import { useAuth } from '../../src/providers/AuthProvider';
 import { supabase } from '../../src/lib/supabase';
 import { canRecordInspection } from '../../src/lib/inspection-helpers';
 import { preparePhotoUpload } from '../../src/lib/evidence-upload';
+import { assertPhotoSignature } from '../../src/lib/photo-signature';
 import { assertPdfHeader, prepareCertificateUpload } from '../../src/lib/certificate-upload';
 
 const BUCKET = 'qa-evidence';
@@ -116,6 +117,8 @@ export default function EvidenceScreen() {
       if (bytes.byteLength !== prepared.sizeBytes) {
         throw new Error('Photograph changed while being read. Please select it again.');
       }
+      // Reject renamed or transcoded files whose actual bytes disagree with MIME.
+      assertPhotoSignature(bytes, prepared.contentType);
       const { error: uploadError } = await supabase.storage.from(BUCKET)
         .upload(prepared.path, bytes, { contentType: prepared.contentType, upsert: false });
       if (uploadError) throw uploadError;
