@@ -20,7 +20,10 @@ Supabase project and do not merge PR #1 until these gates are complete.
   certificate authenticity or provide statutory sign-off. The private Storage
   bucket also checks MIME and organisation RLS. Original image formats may be
   converted by the device picker; reject MIME/extension mismatches rather than
-  silently relabel file bytes.
+  silently relabel file bytes. Before uploading, the client now checks JPEG
+  SOI markers, the PNG eight-byte signature, or a HEIC ISO-BMFF ftyp brand
+  against the selected MIME. This rejects common renamed/corrupted images,
+  but does not decode the whole image or perform malware scanning.
 - Evidence is opened with a 60-second signed URL. This is a bearer URL:
   treat it as sensitive and do not log or share it. The bucket is never public.
 - Current implementation loads the selected file into memory (ArrayBuffer).
@@ -48,6 +51,9 @@ Supabase project and do not merge PR #1 until these gates are complete.
 
 - [ ] Active A inspector can upload JPEG, PNG and HEIC (where supported),
       see the new item in the list and open it with a signed URL.
+- [ ] Reject renamed PNG-as-JPEG, JPEG-as-PNG, AVIF-as-HEIC and truncated HEIC
+      before upload; verify genuine iOS HEIC and Android camera/gallery output
+      are accepted after any picker transcoding.
 - [ ] Active A inspector can select a genuine PDF from Files / iCloud / Android
       document providers, attach it, list it and open its signed URL. Reject a
       renamed non-PDF file, wrong MIME, empty file and >20 MiB PDF before upload.
