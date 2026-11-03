@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { CERTIFICATE_TYPES, validateCertificateDraft } from '../src/lib/certificate-metadata.ts';
+
+const base = { type: 'electrical-installation', title: 'Electrical installation certificate' };
+
+test('recognised classification remains a controlled list', () => {
+  assert.ok(CERTIFICATE_TYPES.includes('ventilation-commissioning'));
+  assert.ok(CERTIFICATE_TYPES.includes('building-control'));
+  assert.ok(!CERTIFICATE_TYPES.includes('approved'));
+});
+
+test('normalises optional metadata without implying certificate approval', () => {
+  assert.deepEqual(validateCertificateDraft({ ...base, title: '  Electrical certificate  ', reference: '  EIC-42 ', issuedOn: '2026-11-03', expiresOn: '2027-11-03' }), {
+    type: 'electrical-installation', title: 'Electrical certificate',
+    reference: 'EIC-42', issuedOn: '2026-11-03', expiresOn: '2027-11-03', notes: null,
+  });
+});
+
+test('rejects unknown categories, empty titles and oversized fields', () => {
+  for (const value of [
+    { ...base, type: 'approved' }, { ...base, title: '   ' },
+    { ...base, title: 'a'.repeat(121) }, { ...base, reference: 'r'.repeat(101) },
+    { ...base, notes: 'n'.repeat(1001) }, { ...base, title: 'bad\nname' },
+  ]) assert.throws(() => validateCertificateDraft(value));
+});
+
+test('rejects impossible dates and backwards expiry', () => {
+  for (const value of [
+    { ...base, issuedOn: '2026-02-29' }, { ...base, issuedOn: '2026-13-01' },
+    { ...base, issuedOn: '03/11/2026' }, { ...base, issuedOn: '2026-11-03', expiresOn: '2026-11-02' },
+  ]) assert.throws(() => validateCertificateDraft(value));
+});
+
+test('accepts leap day and undated certificates', () => {
+  assert.equal(validateCertificateDraft({ ...base, issuedOn: '2024-02-29' }).issuedOn, '2024-02-29');
+  assert.equal(validateCertificateDraft(base).issuedOn, null);
+});
