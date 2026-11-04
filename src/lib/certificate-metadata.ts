@@ -22,9 +22,13 @@ export type CertificateDraft = {
 function optionalText(value: unknown, label: string, max: number): string | null {
   if (value == null || value === '') return null;
   if (typeof value !== 'string') throw new Error(`${label} must be text.`);
+  // Reject control characters before trimming: otherwise leading/trailing newlines
+  // and tabs can disappear and evade validation of audit-facing metadata.
+  if (/[\u0000-\u001f\u007f]/.test(value))
+    throw new Error(`${label} contains control characters.`);
   const trimmed = value.trim();
   if (!trimmed) return null;
-  if (trimmed.length > max || /[\u0000-\u001f\u007f]/.test(trimmed))
+  if (trimmed.length > max)
     throw new Error(`${label} contains invalid characters or exceeds ${max} characters.`);
   return trimmed;
 }
