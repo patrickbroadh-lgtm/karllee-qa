@@ -36,3 +36,13 @@ test('accepts leap day and undated certificates', () => {
   assert.equal(validateCertificateDraft({ ...base, issuedOn: '2024-02-29' }).issuedOn, '2024-02-29');
   assert.equal(validateCertificateDraft(base).issuedOn, null);
 });
+
+test('rejects control characters even at field boundaries or in optional whitespace', () => {
+  for (const value of [
+    { ...base, title: '\nCertificate' },
+    { ...base, title: 'Certificate\t' },
+    { ...base, reference: '\n' },
+    { ...base, notes: 'Valid notes\r\n' },
+    { ...base, reference: 'Ref\u007f' },
+  ]) assert.throws(() => validateCertificateDraft(value), /control characters/);
+});
