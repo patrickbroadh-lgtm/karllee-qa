@@ -46,3 +46,14 @@ test('rejects control characters even at field boundaries or in optional whitesp
     { ...base, reference: 'Ref\u007f' },
   ]) assert.throws(() => validateCertificateDraft(value), /control characters/);
 });
+
+
+test('rejects invisible Unicode and bidirectional spoofing in audit-facing metadata', () => {
+  for (const value of [
+    { ...base, title: 'Certificate\u202ePDF' },
+    { ...base, reference: 'EIC-\u200b42' },
+    { ...base, notes: 'Issued\u2066approved\u2069' },
+    { ...base, title: '\ufeffCertificate' },
+    { ...base, reference: 'REF\u200e42' },
+  ]) assert.throws(() => validateCertificateDraft(value), /control characters/);
+});
