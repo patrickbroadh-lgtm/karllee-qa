@@ -24,7 +24,9 @@ function optionalText(value: unknown, label: string, max: number): string | null
   if (typeof value !== 'string') throw new Error(`${label} must be text.`);
   // Reject control characters before trimming: otherwise leading/trailing newlines
   // and tabs can disappear and evade validation of audit-facing metadata.
-  if (/[\u0000-\u001f\u007f]/.test(value))
+  // Also reject invisible format/bidirectional controls that can disguise
+  // certificate references or reverse displayed text in an audit trail.
+  if (/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/u.test(value))
     throw new Error(`${label} contains control characters.`);
   const trimmed = value.trim();
   if (!trimmed) return null;
