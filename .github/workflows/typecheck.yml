@@ -1,0 +1,68 @@
+name: TypeScript, unit and PostgreSQL RLS tests
+on:
+  push:
+    branches: [main, feature/auth-dashboard-20261016]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Syntax-check opt-in hosted staging script (do not execute)
+        run: |
+          node --check scripts/staging-smoke-guards.mjs
+          node --check scripts/staging-auth-smoke.mjs
+      - run: node --experimental-strip-types --test tests/*.test.mjs
+
+  postgres-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: karllee_qa_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d karllee_qa_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: karllee_qa_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Bootstrap disposable Supabase-compatible roles and auth schema
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres-auth-bootstrap.sql
+      - name: Bootstrap disposable Storage tables
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres-storage-bootstrap.sql
+      - name: Apply all migrations in order (disposable database only)
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202609280001_auth_foundation.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres-api-grants.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610170001_projects_plots_inspections.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610210001_qa_snags_and_audit.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610220001_checklist_answers.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/202610280001_qa_evidence_storage.sql
+      - name: Exercise organisation isolation and authenticated checklist RPC
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/rls-cross-org.sql
+      - name: Exercise private evidence Storage metadata RLS
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/rls-evidence-storage.sql
