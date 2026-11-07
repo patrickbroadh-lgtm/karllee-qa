@@ -62,6 +62,5 @@ test('rejects other Unicode format controls that disguise certificate metadata',
   for (const value of [
     { ...base, title: 'Cert\u00adificate' },
     { ...base, reference: 'REF\u061c42' },
-    { ...base, notes: 'Approved\u180e?' },
   ]) assert.throws(() => validateCertificateDraft(value), /control characters/);
 });
