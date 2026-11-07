@@ -38,7 +38,7 @@ export function planCertificateReviewTransition(input: {
   // Four-eyes principle: no one may approve or reject their own submission.
   if (['verify', 'reject', 'request-changes'].includes(action) && actorId.toLowerCase() === submitterId.toLowerCase())
     throw new Error('A separate reviewer is required.');
-  if (rule.reason && (typeof reason !== 'string' || !reason.trim() || reason.length > 1000 || /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/u.test(reason)))
+  if (rule.reason && (typeof reason !== 'string' || !reason.trim() || reason.length > 1000 || /[\p{Cc}\p{Cf}]/u.test(reason)))
     throw new Error('A valid review reason is required.');
   return { nextState: rule.to, requiresReason: rule.reason };
 }
