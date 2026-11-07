@@ -39,3 +39,8 @@ test('invalid identities and unknown actions fail closed', () => {
   for (const patch of [{ actorId: 'x' }, { submitterId: '' }, { action: '__proto__' }])
     assert.throws(() => plan({ ...base, ...patch }));
 });
+
+test('review reasons reject soft hyphen and Arabic letter mark spoofing', () => {
+  for (const reason of ['Approve\u00ad this', 'Reference\u061c42'])
+    assert.throws(() => plan({ ...base, action: 'reject', reason }), /reason/);
+});
