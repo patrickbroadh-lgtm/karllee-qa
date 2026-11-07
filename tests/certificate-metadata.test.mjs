@@ -57,3 +57,11 @@ test('rejects invisible Unicode and bidirectional spoofing in audit-facing metad
     { ...base, reference: 'REF\u200e42' },
   ]) assert.throws(() => validateCertificateDraft(value), /control characters/);
 });
+
+test('rejects other Unicode format controls that disguise certificate metadata', () => {
+  for (const value of [
+    { ...base, title: 'Cert\u00adificate' },
+    { ...base, reference: 'REF\u061c42' },
+    { ...base, notes: 'Approved\u180e?' },
+  ]) assert.throws(() => validateCertificateDraft(value), /control characters/);
+});
