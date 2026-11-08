@@ -44,3 +44,11 @@ test('review reasons reject soft hyphen and Arabic letter mark spoofing', () => 
   for (const reason of ['Approve\u00ad this', 'Reference\u061c42'])
     assert.throws(() => plan({ ...base, action: 'reject', reason }), /reason/);
 });
+
+test('submission and resubmission require original submitter, including case-insensitive UUID comparison', () => {
+  for (const state of ['draft', 'changes-requested']) {
+    const action = state === 'draft' ? 'submit' : 'resubmit';
+    assert.throws(() => plan({ ...base, state, action, role: 'inspector', actorId: reviewerId }), /Only the certificate submitter/);
+    assert.equal(plan({ ...base, state, action, role: 'inspector', actorId: submitterId.toUpperCase() }).nextState, 'submitted');
+  }
+});
