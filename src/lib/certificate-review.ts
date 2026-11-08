@@ -35,7 +35,10 @@ export function planCertificateReviewTransition(input: {
   if (typeof actorId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(actorId)
     || typeof submitterId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submitterId))
     throw new Error('Valid actor and submitter identifiers are required.');
-  // Only the original submitter may submit or resubmit their certificate.\n  if (['submit', 'resubmit'].includes(action) && actorId.toLowerCase() !== submitterId.toLowerCase())\n    throw new Error('Only the certificate submitter may submit or resubmit.');\n  // Four-eyes principle: no one may approve or reject their own submission.
+  // Only the original submitter may submit or resubmit their certificate.
+  if (['submit', 'resubmit'].includes(action) && actorId.toLowerCase() !== submitterId.toLowerCase())
+    throw new Error('Only the certificate submitter may submit or resubmit.');
+  // Four-eyes principle: no one may approve or reject their own submission.
   if (['verify', 'reject', 'request-changes'].includes(action) && actorId.toLowerCase() === submitterId.toLowerCase())
     throw new Error('A separate reviewer is required.');
   if (rule.reason && (typeof reason !== 'string' || !reason.trim() || reason.length > 1000 || /[\p{Cc}\p{Cf}]/u.test(reason)))
