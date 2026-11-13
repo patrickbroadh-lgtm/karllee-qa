@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { assertStagingTarget } from './staging-smoke-guards.mjs';
+import { assertStagingTarget, assertPublicStagingKey } from './staging-smoke-guards.mjs';
 import { assertStagingFixtureRoles } from './staging-fixture-guards.mjs';
 
 function required(name) {
@@ -39,7 +39,7 @@ async function main() {
     projectRef: required('STAGING_PROJECT_REF'),
     acknowledgement: required('STAGING_WRITE_ACK'),
   });
-  const key = required('STAGING_PUBLISHABLE_KEY'); // Never use service_role.
+  const key = assertPublicStagingKey(required('STAGING_PUBLISHABLE_KEY')); // Never use service_role.
   const orgA = uuid('STAGING_ORG_A_ID');
   const orgB = uuid('STAGING_ORG_B_ID');
   const plotA = uuid('STAGING_PLOT_A_ID');
