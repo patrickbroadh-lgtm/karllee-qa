@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Karllee QA",
+    "slug": "karllee-qa",
+    "scheme": "karlleeqa",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Karllee QA to select inspection evidence photographs.",
+          "cameraPermission": "Allow Karllee QA to take inspection evidence photographs.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "uk.co.karlleeconstruction.qa"
+    }
+  }
+}
