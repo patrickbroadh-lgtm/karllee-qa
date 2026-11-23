@@ -7,7 +7,7 @@ import type { OfflineOutboxItem, OutboxState } from './offline-outbox-state.ts';
 
 const STATES: readonly OutboxState[] = ['pending','sending','retry-wait','needs-auth','conflict','rejected','sent'];
 const FIELDS = ['attempts','draft','nextAttemptAt','state'].sort().join(',');
-const ISO = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/;
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 export function restoreOfflineOutboxItem(value: unknown): OfflineOutboxItem {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid saved outbox record');
