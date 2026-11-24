@@ -17,7 +17,7 @@ test('successful server confirmation is terminal',()=>{
   assert.throws(()=>claimOfflineOutboxItem(sent,userId,projectId,now));
 });
 test('network failures wait for bounded retry and cannot claim early',()=>{
-  const wait=settleOfflineOutboxItem(claim(),{ok:false,status:null,networkFailure:true},now);
+  const wait=settleOfflineOutboxItem(claim(),{ok:false,status:null,networkFailure:true,serverIdempotencyVerified:true},now);
   assert.equal(wait.state,'retry-wait');
   assert.equal(wait.nextAttemptAt,new Date(now+1000).toISOString());
   assert.throws(()=>claimOfflineOutboxItem(wait,userId,projectId,now+999));
@@ -45,4 +45,13 @@ test('cannot settle an item twice or before claim',()=>{
 test('invalid clock and attempt counter fail closed',()=>{
   assert.throws(()=>claimOfflineOutboxItem(newOfflineOutboxItem(draft),userId,projectId,NaN));
   assert.throws(()=>settleOfflineOutboxItem({...claim(),attempts:-1},{ok:false,status:500},now));
+});
+
+test('ambiguous writes without verified server idempotency require reconciliation',()=>{
+  for(const status of [null,408,429,500,503]){
+    const blocked=settleOfflineOutboxItem(claim(),{ok:false,status},now);
+    assert.equal(blocked.state,'conflict');
+    assert.equal(blocked.nextAttemptAt,null);
+    assert.throws(()=>claimOfflineOutboxItem(blocked,userId,projectId,now));
+  }
 });
