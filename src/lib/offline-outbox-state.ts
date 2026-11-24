@@ -34,7 +34,7 @@ export function claimOfflineOutboxItem(item: OfflineOutboxItem, userId: string, 
   return { ...item, state: 'sending', nextAttemptAt: null };
 }
 /** A server-confirmed response is required; caller must not infer success from a network timeout. */
-export function settleOfflineOutboxItem(item: OfflineOutboxItem, result: { ok: true } | { ok: false; status: number | null; networkFailure?: boolean }, nowMs: number): OfflineOutboxItem {
+export function settleOfflineOutboxItem(item: OfflineOutboxItem, result: { ok: true } | { ok: false; status: number | null; networkFailure?: boolean; serverIdempotencyVerified?: boolean }, nowMs: number): OfflineOutboxItem {
   assertClock(nowMs);
   assertAttempts(item.attempts);
   if (item.state !== 'sending') throw new Error('Only in-flight drafts can be settled');
@@ -42,6 +42,11 @@ export function settleOfflineOutboxItem(item: OfflineOutboxItem, result: { ok: t
   const attempts = item.attempts + 1;
   if (!Number.isSafeInteger(attempts)) throw new Error('Retry limit exceeded');
   const disposition = classifyOfflineSyncFailure(result.status, result.networkFailure ?? false);
+  // A timeout or server error may occur after a write commits. Until the
+  // specific server operation guarantees idempotency, require reconciliation.
+  if (disposition === 'retry' && result.serverIdempotencyVerified !== true) {
+    return { ...item, attempts, state: 'conflict', nextAttemptAt: null };
+  }
   if (disposition === 'retry') return { ...item, attempts, state: 'retry-wait', nextAttemptAt: new Date(nowMs + offlineRetryDelayMs(attempts - 1)).toISOString() };
   const state: OutboxState = disposition === 'reauthenticate' ? 'needs-auth' : disposition === 'resolve-conflict' ? 'conflict' : 'rejected';
   return { ...item, attempts, state, nextAttemptAt: null };
