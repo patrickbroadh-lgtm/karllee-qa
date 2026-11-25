@@ -1,0 +1,18 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+const source = readFileSync(new URL('../src/lib/offline-replay-gate.ts', import.meta.url), 'utf8');
+const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const module = { exports: {} };
+new Function('module', 'exports', js)(module, module.exports);
+const { decideOfflineReplay } = module.exports;
+const base = { online: true, authenticatedUserId: 'user-a', draftUserId: 'user-a', selectedProjectId: 'project-a', draftProjectId: 'project-a', localDeleted: false, serverRevisionAtCapture: 'rev-1', currentServerRevision: 'rev-1' };
+test('matching scope and revision proceeds only to server validation', () => assert.equal(decideOfflineReplay(base), 'ready-for-server-validation'));
+test('offline replay waits', () => assert.equal(decideOfflineReplay({ ...base, online: false }), 'retry-later'));
+test('signed-out replay requires authentication', () => assert.equal(decideOfflineReplay({ ...base, authenticatedUserId: null }), 'reauthenticate'));
+test('different user cannot replay', () => assert.equal(decideOfflineReplay({ ...base, authenticatedUserId: 'user-b' }), 'manual-review'));
+test('different project cannot replay', () => assert.equal(decideOfflineReplay({ ...base, selectedProjectId: 'project-b' }), 'manual-review'));
+test('changed server revision requires manual review', () => assert.equal(decideOfflineReplay({ ...base, currentServerRevision: 'rev-2' }), 'manual-review'));
+test('unknown captured revision cannot overwrite existing record', () => assert.equal(decideOfflineReplay({ ...base, serverRevisionAtCapture: null }), 'manual-review'));
+test('deleted local draft is not replayed', () => assert.equal(decideOfflineReplay({ ...base, localDeleted: true }), 'discard-local'));
